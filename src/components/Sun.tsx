@@ -6,10 +6,9 @@ export function Sun() {
   const coreRef = useRef<THREE.Mesh>(null);
   const photosphereRef = useRef<THREE.Points>(null);
   const coronaRef = useRef<THREE.Points>(null);
-  const prominenceRef = useRef<THREE.Points>(null);
 
   // Create photosphere particles for a more realistic sun surface
-  const { photosphereGeometry, photosphereMaterial } = useMemo(() => {
+  const {} = useMemo(() => {
     const geometry = new THREE.BufferGeometry();
     const particles = 100000;
     const positions = new Float32Array(particles * 3);
@@ -32,8 +31,8 @@ export function Sun() {
       colors[i * 3 + 2] = temperature * 0.2;
     }
 
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
     const material = new THREE.PointsMaterial({
       size: 0.05,
@@ -70,8 +69,8 @@ export function Sun() {
       colors[i * 3 + 2] = intensity * 0.5;
     }
 
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
     const material = new THREE.PointsMaterial({
       size: 0.1,
@@ -82,42 +81,6 @@ export function Sun() {
     });
 
     return { coronaGeometry: geometry, coronaMaterial: material };
-  }, []);
-
-  // Create solar prominences
-  const { prominenceGeometry, prominenceMaterial } = useMemo(() => {
-    const geometry = new THREE.BufferGeometry();
-    const points = 10000;
-    const positions = new Float32Array(points * 3);
-    const colors = new Float32Array(points * 3);
-
-    for (let i = 0; i < points; i++) {
-      const angle = (i / points) * Math.PI * 2;
-      const height = Math.sin(angle * 3) * 0.5;
-      const radius = 3.5 + Math.sin(angle * 5) * 0.5;
-
-      positions[i * 3] = Math.cos(angle) * radius;
-      positions[i * 3 + 1] = height;
-      positions[i * 3 + 2] = Math.sin(angle) * radius;
-
-      // Hot orange-red color
-      colors[i * 3] = 1;
-      colors[i * 3 + 1] = 0.3 + Math.random() * 0.2;
-      colors[i * 3 + 2] = 0;
-    }
-
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-    const material = new THREE.PointsMaterial({
-      size: 0.05,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.6,
-      blending: THREE.AdditiveBlending,
-    });
-
-    return { prominenceGeometry: geometry, prominenceMaterial: material };
   }, []);
 
   useFrame((state) => {
@@ -133,12 +96,6 @@ export function Sun() {
       coronaRef.current.rotation.y = time * 0.05;
       const scale = 1 + Math.sin(time * 0.2) * 0.1;
       coronaRef.current.scale.setScalar(scale);
-    }
-
-    // Animate prominences
-    if (prominenceRef.current) {
-      prominenceRef.current.rotation.y = time * 0.2;
-      prominenceRef.current.rotation.x = Math.sin(time * 0.3) * 0.2;
     }
 
     // Update core glow
@@ -162,21 +119,15 @@ export function Sun() {
       </mesh>
 
       {/* Photosphere particles */}
-      <points ref={photosphereRef}>
+      {/* <points ref={photosphereRef}>
         <primitive object={photosphereGeometry} />
         <primitive object={photosphereMaterial} attach="material" />
-      </points>
+      </points> */}
 
       {/* Corona */}
       <points ref={coronaRef}>
         <primitive object={coronaGeometry} />
         <primitive object={coronaMaterial} attach="material" />
-      </points>
-
-      {/* Solar prominences */}
-      <points ref={prominenceRef}>
-        <primitive object={prominenceGeometry} />
-        <primitive object={prominenceMaterial} attach="material" />
       </points>
 
       {/* Enhanced lighting */}

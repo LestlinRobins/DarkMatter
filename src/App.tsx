@@ -18,10 +18,10 @@ import * as THREE from "three";
 import "./App.css";
 
 // Smooth connection animation component
-function SmoothConnections({ 
-  publications, 
-  selectedPub, 
-  opacity 
+function SmoothConnections({
+  publications,
+  selectedPub,
+  opacity,
 }: {
   publications: Publication[];
   selectedPub: Publication | null;
@@ -32,7 +32,7 @@ function SmoothConnections({
 
   useFrame(() => {
     if (Math.abs(currentOpacity - targetOpacity) > 0.01) {
-      setCurrentOpacity(prev => prev + (targetOpacity - prev) * 0.1);
+      setCurrentOpacity((prev) => prev + (targetOpacity - prev) * 0.1);
     }
   });
 
@@ -84,11 +84,11 @@ function SmoothConnections({
 }
 
 // Smooth camera animation component
-function SmoothCamera({ 
-  targetPosition, 
-  targetLookAt, 
-  isAnimating, 
-  onAnimationComplete 
+function SmoothCamera({
+  targetPosition,
+  targetLookAt,
+  isAnimating,
+  onAnimationComplete,
 }: {
   targetPosition: [number, number, number] | null;
   targetLookAt: [number, number, number] | null;
@@ -104,7 +104,13 @@ function SmoothCamera({
 
   // Start animation when props change
   useEffect(() => {
-    if (isAnimating && targetPosition && targetLookAt && cameraRef.current && controlsRef.current) {
+    if (
+      isAnimating &&
+      targetPosition &&
+      targetLookAt &&
+      cameraRef.current &&
+      controlsRef.current
+    ) {
       startPosition.current.copy(cameraRef.current.position);
       startLookAt.current.copy(controlsRef.current.target);
       animationStartTime.current = 0;
@@ -113,24 +119,32 @@ function SmoothCamera({
   }, [isAnimating, targetPosition, targetLookAt]);
 
   useFrame((state) => {
-    if (!cameraRef.current || !controlsRef.current || !isAnimatingRef.current || !targetPosition || !targetLookAt) return;
+    if (
+      !cameraRef.current ||
+      !controlsRef.current ||
+      !isAnimatingRef.current ||
+      !targetPosition ||
+      !targetLookAt
+    )
+      return;
 
     const currentTime = state.clock.getElapsedTime();
-    
+
     // Set start time on first frame
     if (animationStartTime.current === 0) {
       animationStartTime.current = currentTime;
     }
-    
+
     const elapsed = currentTime - animationStartTime.current;
     const duration = 1.5; // 1.5 seconds animation
 
     if (elapsed < duration) {
       // Smooth easing function (ease-in-out)
       const progress = elapsed / duration;
-      const easedProgress = progress < 0.5 
-        ? 2 * progress * progress 
-        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      const easedProgress =
+        progress < 0.5
+          ? 2 * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
 
       // Interpolate position
       const currentPos = new THREE.Vector3().lerpVectors(
@@ -196,11 +210,15 @@ function App() {
   const [selectedConstellation, setSelectedConstellation] = useState<
     string | null
   >(null);
-  
+
   // Animation states
   const [isCameraAnimating, setIsCameraAnimating] = useState(false);
-  const [cameraTargetPosition, setCameraTargetPosition] = useState<[number, number, number] | null>(null);
-  const [cameraTargetLookAt, setCameraTargetLookAt] = useState<[number, number, number] | null>(null);
+  const [cameraTargetPosition, setCameraTargetPosition] = useState<
+    [number, number, number] | null
+  >(null);
+  const [cameraTargetLookAt, setCameraTargetLookAt] = useState<
+    [number, number, number] | null
+  >(null);
   const [showConnections, setShowConnections] = useState(false);
   const [connectionOpacity, setConnectionOpacity] = useState(0);
 
@@ -248,7 +266,7 @@ function App() {
     setSelectedPub(null);
     setShowConnections(false);
     setConnectionOpacity(0);
-    
+
     // Smooth camera return to overview
     setCameraTargetPosition([0, 60, 0]);
     setCameraTargetLookAt([0, 0, 0]);
