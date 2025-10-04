@@ -246,11 +246,29 @@ function App() {
       );
 
       if (constellation) {
-        // Set target positions for smooth camera animation
-        const [x, y, z] = constellation.center;
-        setCameraTargetPosition([x, 20, z]);
-        setCameraTargetLookAt([x, y, z]);
-        setIsCameraAnimating(true);
+        // Calculate proper camera distance based on galaxy bounds
+        const publications = constellation.publications;
+        if (publications.length > 0) {
+          // Find the maximum distance from center in any direction
+          let maxDistance = 0;
+          publications.forEach(p => {
+            const dx = p.position[0] - constellation.center[0];
+            const dy = p.position[1] - constellation.center[1];
+            const dz = p.position[2] - constellation.center[2];
+            const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            maxDistance = Math.max(maxDistance, distance);
+          });
+
+          // Set camera position with proper distance (1.5x the max distance for comfortable viewing)
+          const distanceMultiplier = 1.5;
+          const cameraDistance = Math.max(maxDistance * distanceMultiplier, 25); // Minimum 25 units
+
+          // Position camera above and slightly back from the galaxy center
+          const [x, y, z] = constellation.center;
+          setCameraTargetPosition([x, y + cameraDistance, z]);
+          setCameraTargetLookAt([x, y, z]);
+          setIsCameraAnimating(true);
+        }
       }
     }
   };
@@ -281,6 +299,40 @@ function App() {
   const handleCategoryFilter = (category: string) => {
     setSelectedCategory(category);
     applyFilters(searchQuery, category);
+
+    // Zoom to the corresponding galaxy when a category is selected
+    if (category !== "all") {
+      const galaxy = constellations.find((c) => c.category === category);
+      if (galaxy) {
+        // Calculate proper camera distance based on galaxy bounds
+        const publications = galaxy.publications;
+        if (publications.length > 0) {
+          // Find the maximum distance from center in any direction
+          let maxDistance = 0;
+          publications.forEach(pub => {
+            const dx = pub.position[0] - galaxy.center[0];
+            const dy = pub.position[1] - galaxy.center[1];
+            const dz = pub.position[2] - galaxy.center[2];
+            const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            maxDistance = Math.max(maxDistance, distance);
+          });
+
+          // Set camera position with proper distance (1.5x the max distance for comfortable viewing)
+          const distanceMultiplier = 1.5;
+          const cameraDistance = Math.max(maxDistance * distanceMultiplier, 25); // Minimum 25 units
+
+          // Position camera above and slightly back from the galaxy center
+          const [x, y, z] = galaxy.center;
+          setCameraTargetPosition([x, y + cameraDistance, z]);
+          setCameraTargetLookAt([x, y, z]);
+          setIsCameraAnimating(true);
+          setSelectedConstellation(galaxy.id);
+        }
+      }
+    } else {
+      // If "all" is selected, return to overview
+      handleBackToOverview();
+    }
   };
 
   const applyFilters = (search: string, category: string) => {
