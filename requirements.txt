@@ -1,0 +1,6 @@
+convex
+python-dotenv
+tqdm
+ujson
+google-generativeai
+
