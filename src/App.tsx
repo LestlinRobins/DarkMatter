@@ -189,8 +189,8 @@ function SmoothCamera({
         enablePan
         enableZoom
         enableRotate
-        maxDistance={300}
-        minDistance={20}
+        maxDistance={3000}
+        minDistance={0}
         minPolarAngle={Math.PI * 0.1}
         maxPolarAngle={Math.PI * 0.9}
         target={[0, 0, 0]}
