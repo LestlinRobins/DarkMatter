@@ -3,195 +3,189 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 export function Sun() {
-  const sunRef = useRef<THREE.Mesh>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
-  const outerGlowRef = useRef<THREE.Mesh>(null);
-  const coronaRef = useRef<THREE.Mesh>(null);
-  const fireRef = useRef<THREE.Mesh>(null);
+  const coreRef = useRef<THREE.Mesh>(null);
+  const photosphereRef = useRef<THREE.Points>(null);
+  const coronaRef = useRef<THREE.Points>(null);
+  const prominenceRef = useRef<THREE.Points>(null);
 
-  // Fire shader material
-  const fireShader = useMemo(() => {
-    return new THREE.ShaderMaterial({
-      uniforms: {
-        time: { value: 0 },
-        scale: { value: new THREE.Vector2(1, 1) },
-      },
-      vertexShader: `
-        varying vec2 vUv;
-        varying vec3 vPosition;
-        
-        void main() {
-          vUv = uv;
-          vPosition = position;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform float time;
-        varying vec2 vUv;
-        varying vec3 vPosition;
-        
-        // Noise function for fire
-        float noise(vec3 p) {
-          return fract(sin(dot(p, vec3(12.9898, 78.233, 45.5432))) * 43758.5453);
-        }
-        
-        float fbm(vec3 p) {
-          float value = 0.0;
-          float amplitude = 0.5;
-          float frequency = 1.0;
-          
-          for(int i = 0; i < 6; i++) {
-            value += amplitude * noise(p * frequency);
-            frequency *= 2.0;
-            amplitude *= 0.5;
-          }
-          return value;
-        }
-        
-        void main() {
-          vec2 uv = vUv;
-          
-          // Create turbulent fire motion
-          float noise1 = fbm(vec3(uv * 3.0, time * 0.5));
-          float noise2 = fbm(vec3(uv * 6.0, time * 0.8 + 10.0));
-          
-          // Mix noises for fire effect
-          float fire = noise1 * 0.6 + noise2 * 0.4;
-          
-          // Make fire rise upward
-          fire *= (1.0 - uv.y) * 1.5;
-          
-          // Add some horizontal distortion
-          fire += sin(uv.x * 10.0 + time) * 0.1;
-          
-          // Create fire colors
-          vec3 color1 = vec3(1.0, 0.9, 0.0);  // Yellow
-          vec3 color2 = vec3(1.0, 0.4, 0.0);  // Orange
-          vec3 color3 = vec3(1.0, 0.1, 0.0);  // Red
-          vec3 color4 = vec3(0.2, 0.0, 0.0);  // Dark red
-          
-          vec3 fireColor;
-          if(fire > 0.7) {
-            fireColor = mix(color2, color1, (fire - 0.7) / 0.3);
-          } else if(fire > 0.4) {
-            fireColor = mix(color3, color2, (fire - 0.4) / 0.3);
-          } else {
-            fireColor = mix(color4, color3, fire / 0.4);
-          }
-          
-          // Alpha for transparency
-          float alpha = smoothstep(0.0, 0.5, fire);
-          
-          gl_FragColor = vec4(fireColor, alpha * 0.8);
-        }
-      `,
+  // Create photosphere particles for a more realistic sun surface
+  const { photosphereGeometry, photosphereMaterial } = useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    const particles = 100000;
+    const positions = new Float32Array(particles * 3);
+    const colors = new Float32Array(particles * 3);
+
+    for (let i = 0; i < particles; i++) {
+      // Create spherical distribution
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(Math.random() * 2 - 1);
+      const r = 3 + (Math.random() - 0.5) * 0.1; // Slight variation in radius
+
+      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i * 3 + 2] = r * Math.cos(phi);
+
+      // Color variation from yellow to orange
+      const temperature = Math.random();
+      colors[i * 3] = 1;
+      colors[i * 3 + 1] = 0.5 + temperature * 0.3;
+      colors[i * 3 + 2] = temperature * 0.2;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.05,
+      vertexColors: true,
       transparent: true,
-      side: THREE.DoubleSide,
+      opacity: 0.8,
       blending: THREE.AdditiveBlending,
-      depthWrite: false,
     });
+
+    return { photosphereGeometry: geometry, photosphereMaterial: material };
+  }, []);
+
+  // Create corona particles
+  const { coronaGeometry, coronaMaterial } = useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    const particles = 50000;
+    const positions = new Float32Array(particles * 3);
+    const colors = new Float32Array(particles * 3);
+
+    for (let i = 0; i < particles; i++) {
+      // Create larger spherical distribution
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(Math.random() * 2 - 1);
+      const r = 4 + Math.pow(Math.random(), 2) * 8; // Exponential falloff
+
+      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i * 3 + 2] = r * Math.cos(phi);
+
+      // Color gradient from white to orange
+      const intensity = Math.pow(4 / r, 2);
+      colors[i * 3] = 1;
+      colors[i * 3 + 1] = 0.6 + (1 - intensity) * 0.4;
+      colors[i * 3 + 2] = intensity * 0.5;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.1,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.6,
+      blending: THREE.AdditiveBlending,
+    });
+
+    return { coronaGeometry: geometry, coronaMaterial: material };
+  }, []);
+
+  // Create solar prominences
+  const { prominenceGeometry, prominenceMaterial } = useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    const points = 10000;
+    const positions = new Float32Array(points * 3);
+    const colors = new Float32Array(points * 3);
+
+    for (let i = 0; i < points; i++) {
+      const angle = (i / points) * Math.PI * 2;
+      const height = Math.sin(angle * 3) * 0.5;
+      const radius = 3.5 + Math.sin(angle * 5) * 0.5;
+
+      positions[i * 3] = Math.cos(angle) * radius;
+      positions[i * 3 + 1] = height;
+      positions[i * 3 + 2] = Math.sin(angle) * radius;
+
+      // Hot orange-red color
+      colors[i * 3] = 1;
+      colors[i * 3 + 1] = 0.3 + Math.random() * 0.2;
+      colors[i * 3 + 2] = 0;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.05,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.6,
+      blending: THREE.AdditiveBlending,
+    });
+
+    return { prominenceGeometry: geometry, prominenceMaterial: material };
   }, []);
 
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
 
-    // Update fire shader time
-    if (fireRef.current) {
-      fireShader.uniforms.time.value = time;
-      fireRef.current.rotation.y = time * 0.1;
+    // Rotate photosphere
+    if (photosphereRef.current) {
+      photosphereRef.current.rotation.y = time * 0.1;
     }
 
-    // Pulsating sun effect
-    if (sunRef.current) {
-      const scale = 1 + Math.sin(time * 0.5) * 0.05;
-      sunRef.current.scale.setScalar(scale);
-    }
-
-    // Rotating glow layers
-    if (glowRef.current) {
-      glowRef.current.rotation.z = time * 0.2;
-      const glowScale = 1 + Math.sin(time * 0.8) * 0.1;
-      glowRef.current.scale.setScalar(glowScale);
-    }
-
-    if (outerGlowRef.current) {
-      outerGlowRef.current.rotation.z = -time * 0.15;
-      const outerScale = 1 + Math.cos(time * 0.6) * 0.08;
-      outerGlowRef.current.scale.setScalar(outerScale);
-    }
-
-    // Corona effect
+    // Animate corona
     if (coronaRef.current) {
-      coronaRef.current.rotation.x = time * 0.1;
-      coronaRef.current.rotation.y = time * 0.15;
+      coronaRef.current.rotation.y = time * 0.05;
+      const scale = 1 + Math.sin(time * 0.2) * 0.1;
+      coronaRef.current.scale.setScalar(scale);
+    }
+
+    // Animate prominences
+    if (prominenceRef.current) {
+      prominenceRef.current.rotation.y = time * 0.2;
+      prominenceRef.current.rotation.x = Math.sin(time * 0.3) * 0.2;
+    }
+
+    // Update core glow
+    if (coreRef.current) {
+      const scale = 1 + Math.sin(time * 0.5) * 0.05;
+      coreRef.current.scale.setScalar(scale);
     }
   });
 
   return (
-    <group position={[0, 0, 0]}>
-      {/* Core Sun */}
-      <mesh ref={sunRef}>
-        <sphereGeometry args={[3, 64, 64]} />
-        <meshStandardMaterial
-          color="#FF6B00"
-          emissive="#FF4500"
-          emissiveIntensity={3}
-          roughness={0.8}
-          metalness={0.2}
-        />
-      </mesh>
-
-      {/* Inner Glow Layer - Orange */}
-      <mesh ref={glowRef}>
-        <sphereGeometry args={[3.8, 32, 32]} />
+    <group>
+      {/* Core glow */}
+      <mesh ref={coreRef}>
+        <sphereGeometry args={[3.2, 64, 64]} />
         <meshBasicMaterial
-          color="#FF8C00"
+          color="#FFA500"
           transparent
-          opacity={0.4}
-          side={THREE.BackSide}
+          opacity={0.3}
+          blending={THREE.AdditiveBlending}
         />
       </mesh>
 
-      {/* Middle Glow Layer - Yellow */}
-      <mesh ref={outerGlowRef}>
-        <sphereGeometry args={[4.5, 32, 32]} />
-        <meshBasicMaterial
-          color="#FFD700"
-          transparent
-          opacity={0.25}
-          side={THREE.BackSide}
-        />
-      </mesh>
+      {/* Photosphere particles */}
+      <points ref={photosphereRef}>
+        <primitive object={photosphereGeometry} />
+        <primitive object={photosphereMaterial} attach="material" />
+      </points>
 
-      {/* Outer Corona - Light Yellow */}
-      <mesh ref={coronaRef}>
-        <sphereGeometry args={[5.5, 32, 32]} />
-        <meshBasicMaterial
-          color="#FFF5E1"
-          transparent
-          opacity={0.12}
-          side={THREE.BackSide}
-        />
-      </mesh>
+      {/* Corona */}
+      <points ref={coronaRef}>
+        <primitive object={coronaGeometry} />
+        <primitive object={coronaMaterial} attach="material" />
+      </points>
 
-      {/* Realistic Fire Layer */}
-      <mesh ref={fireRef}>
-        <sphereGeometry args={[3.3, 64, 64]} />
-        <primitive object={fireShader} attach="material" />
-      </mesh>
+      {/* Solar prominences */}
+      <points ref={prominenceRef}>
+        <primitive object={prominenceGeometry} />
+        <primitive object={prominenceMaterial} attach="material" />
+      </points>
 
-      {/* Directional light from sun */}
-      <directionalLight intensity={2.5} color="#FFE5CC" castShadow />
+      {/* Enhanced lighting */}
+      <pointLight intensity={2} color="#FFE5CC" distance={100} decay={2} />
+      <pointLight intensity={1.5} color="#FF8C00" distance={50} decay={2} />
+      <pointLight intensity={1} color="#FF4500" distance={25} decay={2} />
 
-      {/* Main sun point light - Brighter orange glow */}
-      <pointLight intensity={5} color="#FF8C00" distance={150} decay={1.2} />
-
-      {/* Secondary warm glow - More intense */}
-      <pointLight intensity={3} color="#FFD700" distance={100} decay={1.5} />
-
-      {/* Additional ambient orange light */}
-      <pointLight intensity={2} color="#FFA500" distance={80} decay={2} />
+      {/* Ambient light for better visibility */}
+      <ambientLight intensity={0.5} color="#FFE5CC" />
     </group>
   );
 }

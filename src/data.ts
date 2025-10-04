@@ -1134,54 +1134,87 @@ export function getStatistics(): Statistics {
   };
 }
 
-// Function to create galaxies (groups of 4 publications)
+// Function to create a realistic universe with 10 galaxies
 export function createConstellations(): Constellation[] {
   const constellations: Constellation[] = [];
-  const groupSize = 4; // Changed to 4 for galaxies
+  const numberOfGalaxies = 10;
 
-  let constellationIndex = 0;
+  // Create array of unique categories to ensure variety
+  const uniqueCategories = Array.from(new Set(mockPublications.map(pub => pub.category)));
+  
+  // Constants for galaxy distribution
+  const minRadius = 30;  // Minimum distance from center
+  const maxRadius = 120; // Maximum distance from center
+  const verticalSpread = 25; // Maximum vertical displacement
+  const spiralArms = 3;  // Number of spiral arms in the universe
+  const spiralTightness = 0.5; // How tight the spiral arms are
+  
+  // Helper function to create a realistic spiral arm distribution
+  const getSpiralPosition = (index: number, totalGalaxies: number) => {
+    const progressAlongSpiral = index / totalGalaxies;
+    const spiralAngle = progressAlongSpiral * Math.PI * 4 + (2 * Math.PI * index / spiralArms);
+    const radiusProgression = progressAlongSpiral * (maxRadius - minRadius) + minRadius;
+    
+    // Add some randomness to make it more natural
+    const randomOffset = {
+      x: (Math.random() - 0.5) * 15,
+      y: (Math.random() - 0.5) * verticalSpread,
+      z: (Math.random() - 0.5) * 15
+    };
+    
+    // Calculate base spiral position
+    const x = Math.cos(spiralAngle) * radiusProgression * spiralTightness + randomOffset.x;
+    const z = Math.sin(spiralAngle) * radiusProgression * spiralTightness + randomOffset.z;
+    const y = Math.sin(spiralAngle * 0.5) * verticalSpread * 0.5 + randomOffset.y;
+    
+    return [x, y, z];
+  };
 
-  for (let i = 0; i < mockPublications.length; i += groupSize) {
-    const group = mockPublications.slice(i, i + groupSize);
-    const category = group[0].category;
-    const color =
-      categories[category as keyof typeof categories]?.color || "#888888";
+  for (let i = 0; i < numberOfGalaxies; i++) {
+    const category = uniqueCategories[i % uniqueCategories.length];
+    const categoryPubs = mockPublications.filter(pub => pub.category === category);
+    const publications = categoryPubs.slice(0, 6); // Allow more publications per galaxy
+    
+    // Fill remaining slots if needed
+    while (publications.length < 4) { // Minimum 4 publications per galaxy
+      const remainingPub = mockPublications.find(p => !constellations.some(c => c.publications.includes(p)));
+      if (remainingPub) publications.push(remainingPub);
+    }
 
-    // Calculate galaxy center position - flat plane around sun
-    const angle =
-      (constellationIndex / Math.ceil(mockPublications.length / groupSize)) *
-      Math.PI *
-      2;
-    const radius = 35; // Distance from center sun
-    const centerX = Math.cos(angle) * radius;
-    const centerZ = Math.sin(angle) * radius;
-    const centerY = 0; // Keep all galaxies in the same plane
+    const color = categories[category as keyof typeof categories]?.color || "#888888";
 
-    // Position publications within the galaxy (spread them out in spiral arms)
-    group.forEach((pub, index) => {
-      const spiralAngle =
-        (index / groupSize) * Math.PI * 2 + Math.random() * 0.5;
-      const spiralRadius = 4 + index * 1.5; // Spread further within galaxy
+    // Get position along spiral arm
+    const [centerX, centerY, centerZ] = getSpiralPosition(i, numberOfGalaxies);
 
-      // Update the actual publication in mockPublications
+    // Create a more complex internal galaxy structure
+    publications.forEach((pub, index) => {
+      const galacticAngle = (index / publications.length) * Math.PI * 2;
+      const pubRadius = 3 + Math.random() * 3; // Vary the radius within galaxy
+      
+      // Create elliptical orbits
+      const eccentricity = 0.2 + Math.random() * 0.3; // Random elliptical shape
+      const a = pubRadius;
+      const b = pubRadius * (1 - eccentricity);
+      
+      // Add some vertical structure (galactic bulge)
+      const verticalDisplacement = Math.random() * Math.exp(-pubRadius / 2);
+      
       pub.position = [
-        centerX + Math.cos(spiralAngle) * spiralRadius,
-        centerY + (Math.random() - 0.5) * 0.3, // Very thin disk
-        centerZ + Math.sin(spiralAngle) * spiralRadius,
+        centerX + (a * Math.cos(galacticAngle)),
+        centerY + verticalDisplacement + (Math.random() - 0.5) * 2,
+        centerZ + (b * Math.sin(galacticAngle))
       ];
-      pub.constellationId = `galaxy-${constellationIndex}`;
+      pub.constellationId = `galaxy-${i}`;
     });
 
     constellations.push({
-      id: `galaxy-${constellationIndex}`,
-      name: `${category} Galaxy ${constellationIndex + 1}`,
-      publications: group,
+      id: `galaxy-${i}`,
+      name: `${category} Galaxy ${i + 1}`,
+      publications,
       center: [centerX, centerY, centerZ],
       color,
       category,
     });
-
-    constellationIndex++;
   }
 
   return constellations;

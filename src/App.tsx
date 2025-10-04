@@ -391,16 +391,20 @@ function App() {
           <PerspectiveCamera
             ref={cameraRef}
             makeDefault
-            position={[0, 60, 0]}
-            rotation={[-Math.PI / 2, 0, 0]}
+            position={[0, 40, 80]}
+            fov={60}
+            near={0.1}
+            far={1000}
           />
           <OrbitControls
             ref={controlsRef}
             enablePan
             enableZoom
             enableRotate
-            maxDistance={200}
-            minDistance={10}
+            maxDistance={300}
+            minDistance={20}
+            minPolarAngle={Math.PI * 0.1}
+            maxPolarAngle={Math.PI * 0.9}
             target={[0, 0, 0]}
           />
 
