@@ -6,7 +6,28 @@ export function Sun() {
   const coreRef = useRef<THREE.Mesh>(null);
   const photosphereRef = useRef<THREE.Points>(null);
   const coronaRef = useRef<THREE.Points>(null);
-  const prominenceRef = useRef<THREE.Points>(null);
+
+  // Create circular particle texture
+  const particleTexture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext("2d")!;
+
+    // Create radial gradient for circular particle
+    const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+    gradient.addColorStop(0.2, "rgba(255, 255, 255, 0.9)");
+    gradient.addColorStop(0.5, "rgba(255, 255, 255, 0.5)");
+    gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 32, 32);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+  }, []);
 
   // Create photosphere particles for a more realistic sun surface
   const { photosphereGeometry, photosphereMaterial } = useMemo(() => {
@@ -32,19 +53,23 @@ export function Sun() {
       colors[i * 3 + 2] = temperature * 0.2;
     }
 
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
     const material = new THREE.PointsMaterial({
       size: 0.05,
       vertexColors: true,
+      map: particleTexture,
       transparent: true,
       opacity: 0.8,
       blending: THREE.AdditiveBlending,
+      depthTest: true,
+      depthWrite: true,
+      alphaTest: 0.01,
     });
 
     return { photosphereGeometry: geometry, photosphereMaterial: material };
-  }, []);
+  }, [particleTexture]);
 
   // Create corona particles
   const { coronaGeometry, coronaMaterial } = useMemo(() => {
@@ -70,55 +95,23 @@ export function Sun() {
       colors[i * 3 + 2] = intensity * 0.5;
     }
 
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
     const material = new THREE.PointsMaterial({
       size: 0.1,
       vertexColors: true,
+      map: particleTexture,
       transparent: true,
       opacity: 0.6,
       blending: THREE.AdditiveBlending,
+      depthTest: true,
+      depthWrite: false,
+      alphaTest: 0.01,
     });
 
     return { coronaGeometry: geometry, coronaMaterial: material };
-  }, []);
-
-  // Create solar prominences
-  const { prominenceGeometry, prominenceMaterial } = useMemo(() => {
-    const geometry = new THREE.BufferGeometry();
-    const points = 10000;
-    const positions = new Float32Array(points * 3);
-    const colors = new Float32Array(points * 3);
-
-    for (let i = 0; i < points; i++) {
-      const angle = (i / points) * Math.PI * 2;
-      const height = Math.sin(angle * 3) * 0.5;
-      const radius = 3.5 + Math.sin(angle * 5) * 0.5;
-
-      positions[i * 3] = Math.cos(angle) * radius;
-      positions[i * 3 + 1] = height;
-      positions[i * 3 + 2] = Math.sin(angle) * radius;
-
-      // Hot orange-red color
-      colors[i * 3] = 1;
-      colors[i * 3 + 1] = 0.3 + Math.random() * 0.2;
-      colors[i * 3 + 2] = 0;
-    }
-
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-    const material = new THREE.PointsMaterial({
-      size: 0.05,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.6,
-      blending: THREE.AdditiveBlending,
-    });
-
-    return { prominenceGeometry: geometry, prominenceMaterial: material };
-  }, []);
+  }, [particleTexture]);
 
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
@@ -135,12 +128,6 @@ export function Sun() {
       coronaRef.current.scale.setScalar(scale);
     }
 
-    // Animate prominences
-    if (prominenceRef.current) {
-      prominenceRef.current.rotation.y = time * 0.2;
-      prominenceRef.current.rotation.x = Math.sin(time * 0.3) * 0.2;
-    }
-
     // Update core glow
     if (coreRef.current) {
       const scale = 1 + Math.sin(time * 0.5) * 0.05;
@@ -150,33 +137,28 @@ export function Sun() {
 
   return (
     <group>
-      {/* Core glow */}
-      <mesh ref={coreRef}>
+      {/* Core glow - render first */}
+      <mesh ref={coreRef} renderOrder={1}>
         <sphereGeometry args={[3.2, 64, 64]} />
         <meshBasicMaterial
           color="#FFA500"
           transparent
-          opacity={0.3}
+          opacity={0.4}
           blending={THREE.AdditiveBlending}
+          depthWrite={false}
         />
       </mesh>
 
-      {/* Photosphere particles */}
-      <points ref={photosphereRef}>
+      {/* Photosphere particles - render second */}
+      <points ref={photosphereRef} renderOrder={2}>
         <primitive object={photosphereGeometry} />
         <primitive object={photosphereMaterial} attach="material" />
       </points>
 
-      {/* Corona */}
-      <points ref={coronaRef}>
+      {/* Corona - render last */}
+      <points ref={coronaRef} renderOrder={3}>
         <primitive object={coronaGeometry} />
         <primitive object={coronaMaterial} attach="material" />
-      </points>
-
-      {/* Solar prominences */}
-      <points ref={prominenceRef}>
-        <primitive object={prominenceGeometry} />
-        <primitive object={prominenceMaterial} attach="material" />
       </points>
 
       {/* Enhanced lighting */}
