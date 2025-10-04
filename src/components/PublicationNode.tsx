@@ -115,36 +115,41 @@ export function PublicationNode({
       // Smooth scaling with interpolation
       let targetScale = 1;
       if (isSelected) {
-        targetScale = 1.5 + Math.sin(state.clock.getElapsedTime() * 2) * 0.2;
+        targetScale = 1.6 + Math.sin(state.clock.getElapsedTime() * 1.5) * 0.15; // Slower, more subtle pulsing
       } else if (hovered) {
-        targetScale = 1.3;
+        targetScale = 1.4;
       } else if (isConnected) {
-        targetScale = 1.1;
+        targetScale = 1.2;
       }
 
       // Smooth interpolation to target scale
       const currentScale = groupRef.current.scale.x;
-      const newScale = currentScale + (targetScale - currentScale) * 0.1;
+      const newScale = currentScale + (targetScale - currentScale) * 0.15; // Faster interpolation
       groupRef.current.scale.setScalar(newScale);
 
-      // Gentle floating animation
-      groupRef.current.position.y =
-        Math.sin(state.clock.getElapsedTime() + publication.position[0]) * 0.2;
+      // More dramatic floating animation for selected planets
+      if (isSelected) {
+        groupRef.current.position.y =
+          Math.sin(state.clock.getElapsedTime() * 1.2 + publication.position[0]) * 0.3;
+      } else {
+        groupRef.current.position.y =
+          Math.sin(state.clock.getElapsedTime() + publication.position[0]) * 0.2;
+      }
     }
 
-    // Slow planet rotation
+    // Faster planet rotation for selected planets
     if (planetRef.current) {
-      planetRef.current.rotation.y += 0.002;
+      planetRef.current.rotation.y += isSelected ? 0.003 : 0.002;
     }
   });
 
-  // Smooth opacity transitions
+  // Enhanced opacity transitions
   const [currentOpacity, setCurrentOpacity] = useState(0.9);
   const targetOpacity = isSelected ? 1 : isConnected ? 0.95 : 0.9;
 
   useFrame(() => {
     if (Math.abs(currentOpacity - targetOpacity) > 0.01) {
-      setCurrentOpacity((prev) => prev + (targetOpacity - prev) * 0.1);
+      setCurrentOpacity((prev) => prev + (targetOpacity - prev) * 0.15); // Faster opacity transitions
     }
   });
 
@@ -168,7 +173,7 @@ export function PublicationNode({
             normalScale={new THREE.Vector2(0.5, 0.5)}
             color={color}
             emissive={color}
-            emissiveIntensity={isSelected ? 0.4 : isConnected ? 0.2 : 0.1}
+            emissiveIntensity={isSelected ? 0.4 : isConnected ? 0.3 : 0.15} // Much brighter for selected
             roughness={0.9}
             metalness={0.1}
             transparent
@@ -182,22 +187,46 @@ export function PublicationNode({
           <meshBasicMaterial
             color={color}
             transparent
-            opacity={isSelected ? 0.3 : isConnected ? 0.2 : 0.1}
+            opacity={isSelected ? 0.3 : isConnected ? 0.25 : 0.15} // Much brighter glow for selected
             side={THREE.BackSide}
           />
         </mesh>
 
         {/* Outer glow ring for selection */}
         {(isSelected || isConnected) && (
-          <mesh scale={1.2}>
-            <ringGeometry args={[0.6, 0.7, 32]} />
+          <mesh scale={isSelected ? 1.4 : 1.2}>
+            <ringGeometry args={[0.6, 0.8, 32]} />
             <meshBasicMaterial
               color={color}
               transparent
-              opacity={isSelected ? 0.6 : 0.3}
+              opacity={isSelected ? 0.6 : 0.4} // Much brighter ring for selected
               side={THREE.DoubleSide}
             />
           </mesh>
+        )}
+
+        {/* Selection pulse rings */}
+        {isSelected && (
+          <>
+            <mesh scale={1.6 + Math.sin(Date.now() * 0.005) * 0.08}>
+              <ringGeometry args={[0.7, 0.75, 16]} />
+              <meshBasicMaterial
+                color={color}
+                transparent
+                opacity={0.4 * (0.5 + Math.sin(Date.now() * 0.004) * 0.5)}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+            <mesh scale={2.0 + Math.sin(Date.now() * 0.004) * 0.12}>
+              <ringGeometry args={[0.8, 0.85, 16]} />
+              <meshBasicMaterial
+                color={color}
+                transparent
+                opacity={0.2 * (0.5 + Math.sin(Date.now() * 0.003) * 0.5)}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+          </>
         )}
       </group>
 

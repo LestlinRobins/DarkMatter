@@ -238,6 +238,9 @@ function App() {
     setShowConnections(true);
     setConnectionOpacity(1);
 
+    // Highlight the category of the selected publication
+    setSelectedCategory(pub.category);
+
     // Zoom into the galaxy - maintain top-down view with smooth animation
     if (pub.constellationId) {
       setSelectedConstellation(pub.constellationId);
@@ -408,6 +411,7 @@ function App() {
         >
           🌌 NASA Bioscience Knowledge Galaxy
         </h1>
+
         <p
           style={{
             color: "#aaa",
