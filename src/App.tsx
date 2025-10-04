@@ -136,15 +136,12 @@ function SmoothCamera({
     }
 
     const elapsed = currentTime - animationStartTime.current;
-    const duration = 1.5; // 1.5 seconds animation
+    const duration = 0.8; // Faster animation for better responsiveness
 
     if (elapsed < duration) {
-      // Smooth easing function (ease-in-out)
+      // More responsive easing function (ease-out)
       const progress = elapsed / duration;
-      const easedProgress =
-        progress < 0.5
-          ? 2 * progress * progress
-          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
 
       // Interpolate position
       const currentPos = new THREE.Vector3().lerpVectors(
@@ -195,7 +192,10 @@ function SmoothCamera({
         maxPolarAngle={Math.PI * 0.9}
         target={[0, 0, 0]}
         enableDamping
-        dampingFactor={0.05}
+        dampingFactor={0.08}
+        rotateSpeed={0.8}
+        zoomSpeed={1.2}
+        panSpeed={0.8}
       />
     </>
   );
@@ -260,10 +260,10 @@ function App() {
           });
 
           // Set camera position with proper distance (1.5x the max distance for comfortable viewing)
-          const distanceMultiplier = 1.5;
-          const cameraDistance = Math.max(maxDistance * distanceMultiplier, 25); // Minimum 25 units
+          const distanceMultiplier = 1.3; // Slightly closer for better responsiveness
+          const cameraDistance = Math.max(maxDistance * distanceMultiplier, 20); // Reduced minimum distance
 
-          // Position camera above and slightly back from the galaxy center
+          // Position camera above and slightly back from the galaxy center for better angle
           const [x, y, z] = constellation.center;
           setCameraTargetPosition([x, y + cameraDistance, z]);
           setCameraTargetLookAt([x, y, z]);
@@ -318,8 +318,8 @@ function App() {
           });
 
           // Set camera position with proper distance (1.5x the max distance for comfortable viewing)
-          const distanceMultiplier = 1.5;
-          const cameraDistance = Math.max(maxDistance * distanceMultiplier, 25); // Minimum 25 units
+          const distanceMultiplier = 1.3; // Slightly closer for better responsiveness
+          const cameraDistance = Math.max(maxDistance * distanceMultiplier, 20); // Reduced minimum distance
 
           // Position camera above and slightly back from the galaxy center
           const [x, y, z] = galaxy.center;
@@ -354,8 +354,32 @@ function App() {
   };
 
   const connectedIds = selectedPub ? selectedPub.connections : [];
-  const displayPubs =
-    searchQuery || selectedCategory !== "all" ? filteredPubs : mockPublications;
+
+  // When showing connections, include all connected publications even if they're from different categories
+  const displayPubs = (() => {
+    if (!showConnections || !selectedPub) {
+      // Normal filtering when not showing connections
+      return searchQuery || selectedCategory !== "all" ? filteredPubs : mockPublications;
+    }
+
+    // When showing connections, include the selected publication and all its connections
+    const allPubsToShow = new Set([...filteredPubs]);
+
+    // Add the selected publication if it's not already in filteredPubs
+    if (selectedPub && !allPubsToShow.has(selectedPub)) {
+      allPubsToShow.add(selectedPub);
+    }
+
+    // Add all connected publications
+    selectedPub.connections.forEach(connId => {
+      const connectedPub = mockPublications.find(p => p.id === connId);
+      if (connectedPub) {
+        allPubsToShow.add(connectedPub);
+      }
+    });
+
+    return Array.from(allPubsToShow);
+  })();
 
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#000" }}>
