@@ -48,3 +48,52 @@ input:focus {
 ::-webkit-scrollbar-thumb:hover {
   background: #3dbcb4;
 }
+
+/* Smooth animations */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Smooth transitions for UI elements */
+.smooth-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.smooth-scale {
+  transition: transform 0.2s ease-out;
+}
+
+.smooth-scale:hover {
+  transform: scale(1.05);
+}
+
+.smooth-fade {
+  transition: opacity 0.3s ease-in-out;
+}

@@ -4,11 +4,13 @@ import { categories } from "../data";
 interface ConnectionLinesProps {
   publications: Publication[];
   selectedPub: Publication | null;
+  opacity?: number;
 }
 
 export function ConnectionLines({
   publications,
   selectedPub,
+  opacity = 1,
 }: ConnectionLinesProps) {
   if (!selectedPub) return null;
 
@@ -47,7 +49,7 @@ export function ConnectionLines({
             <lineBasicMaterial
               color={color}
               transparent
-              opacity={0.6}
+              opacity={0.6 * opacity}
               linewidth={2}
             />
           </line>

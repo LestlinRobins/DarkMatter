@@ -27,15 +27,20 @@ export function PublicationNode({
 
   useFrame((state) => {
     if (groupRef.current) {
+      // Smooth scaling with interpolation
+      let targetScale = 1;
       if (isSelected) {
-        groupRef.current.scale.setScalar(
-          1.5 + Math.sin(state.clock.getElapsedTime() * 2) * 0.2
-        );
+        targetScale = 1.5 + Math.sin(state.clock.getElapsedTime() * 2) * 0.2;
       } else if (hovered) {
-        groupRef.current.scale.setScalar(1.3);
-      } else {
-        groupRef.current.scale.setScalar(1);
+        targetScale = 1.3;
+      } else if (isConnected) {
+        targetScale = 1.1;
       }
+
+      // Smooth interpolation to target scale
+      const currentScale = groupRef.current.scale.x;
+      const newScale = currentScale + (targetScale - currentScale) * 0.1;
+      groupRef.current.scale.setScalar(newScale);
 
       // Gentle floating animation
       groupRef.current.position.y =
@@ -43,7 +48,16 @@ export function PublicationNode({
     }
   });
 
-  const opacity = isSelected ? 1 : isConnected ? 0.8 : 0.5;
+  // Smooth opacity transitions
+  const [currentOpacity, setCurrentOpacity] = useState(0.5);
+  const targetOpacity = isSelected ? 1 : isConnected ? 0.8 : 0.5;
+  
+  useFrame(() => {
+    if (Math.abs(currentOpacity - targetOpacity) > 0.01) {
+      setCurrentOpacity(prev => prev + (targetOpacity - prev) * 0.1);
+    }
+  });
+
   const scale = Math.log10(publication.citations + 1) * 0.3 + 0.5;
 
   return (
@@ -63,7 +77,7 @@ export function PublicationNode({
             emissive={color}
             emissiveIntensity={isSelected ? 0.8 : isConnected ? 0.5 : 0.3}
             transparent
-            opacity={opacity}
+            opacity={currentOpacity}
           />
         </mesh>
 

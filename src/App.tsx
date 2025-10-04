@@ -1,5 +1,5 @@
-import { useState, Suspense, useRef, useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
+import { useState, Suspense, useRef, useEffect, useCallback } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { StarField } from "./components/StarField";
 import { Sun } from "./components/Sun";
@@ -14,7 +14,178 @@ import {
   createConstellations,
 } from "./data";
 import type { Publication, Constellation } from "./types";
+import * as THREE from "three";
 import "./App.css";
+
+// Smooth connection animation component
+function SmoothConnections({ 
+  publications, 
+  selectedPub, 
+  opacity 
+}: {
+  publications: Publication[];
+  selectedPub: Publication | null;
+  opacity: number;
+}) {
+  const [currentOpacity, setCurrentOpacity] = useState(0);
+  const targetOpacity = opacity;
+
+  useFrame(() => {
+    if (Math.abs(currentOpacity - targetOpacity) > 0.01) {
+      setCurrentOpacity(prev => prev + (targetOpacity - prev) * 0.1);
+    }
+  });
+
+  if (!selectedPub) return null;
+
+  const color =
+    categories[selectedPub.category as keyof typeof categories]?.color ||
+    "#888888";
+
+  return (
+    <group>
+      {selectedPub.connections.map((connId) => {
+        const connectedPub = publications.find((p) => p.id === connId);
+        if (!connectedPub) return null;
+
+        return (
+          <line key={`${selectedPub.id}-${connId}`}>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                count={2}
+                array={
+                  new Float32Array([
+                    ...selectedPub.position,
+                    ...connectedPub.position,
+                  ])
+                }
+                itemSize={3}
+                args={[
+                  new Float32Array([
+                    ...selectedPub.position,
+                    ...connectedPub.position,
+                  ]),
+                  3,
+                ]}
+              />
+            </bufferGeometry>
+            <lineBasicMaterial
+              color={color}
+              transparent
+              opacity={0.6 * currentOpacity}
+              linewidth={2}
+            />
+          </line>
+        );
+      })}
+    </group>
+  );
+}
+
+// Smooth camera animation component
+function SmoothCamera({ 
+  targetPosition, 
+  targetLookAt, 
+  isAnimating, 
+  onAnimationComplete 
+}: {
+  targetPosition: [number, number, number] | null;
+  targetLookAt: [number, number, number] | null;
+  isAnimating: boolean;
+  onAnimationComplete: () => void;
+}) {
+  const cameraRef = useRef<THREE.PerspectiveCamera>(null);
+  const controlsRef = useRef<any>(null);
+  const startPosition = useRef<THREE.Vector3>(new THREE.Vector3());
+  const startLookAt = useRef<THREE.Vector3>(new THREE.Vector3());
+  const animationStartTime = useRef<number>(0);
+  const isAnimatingRef = useRef<boolean>(false);
+
+  // Start animation when props change
+  useEffect(() => {
+    if (isAnimating && targetPosition && targetLookAt && cameraRef.current && controlsRef.current) {
+      startPosition.current.copy(cameraRef.current.position);
+      startLookAt.current.copy(controlsRef.current.target);
+      animationStartTime.current = 0;
+      isAnimatingRef.current = true;
+    }
+  }, [isAnimating, targetPosition, targetLookAt]);
+
+  useFrame((state) => {
+    if (!cameraRef.current || !controlsRef.current || !isAnimatingRef.current || !targetPosition || !targetLookAt) return;
+
+    const currentTime = state.clock.getElapsedTime();
+    
+    // Set start time on first frame
+    if (animationStartTime.current === 0) {
+      animationStartTime.current = currentTime;
+    }
+    
+    const elapsed = currentTime - animationStartTime.current;
+    const duration = 1.5; // 1.5 seconds animation
+
+    if (elapsed < duration) {
+      // Smooth easing function (ease-in-out)
+      const progress = elapsed / duration;
+      const easedProgress = progress < 0.5 
+        ? 2 * progress * progress 
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+      // Interpolate position
+      const currentPos = new THREE.Vector3().lerpVectors(
+        startPosition.current,
+        new THREE.Vector3(...targetPosition),
+        easedProgress
+      );
+      cameraRef.current.position.copy(currentPos);
+
+      // Interpolate look-at target
+      const currentLookAt = new THREE.Vector3().lerpVectors(
+        startLookAt.current,
+        new THREE.Vector3(...targetLookAt),
+        easedProgress
+      );
+      controlsRef.current.target.copy(currentLookAt);
+      controlsRef.current.update();
+    } else {
+      // Animation complete
+      cameraRef.current.position.set(...targetPosition);
+      controlsRef.current.target.set(...targetLookAt);
+      controlsRef.current.update();
+      isAnimatingRef.current = false;
+      animationStartTime.current = 0;
+      onAnimationComplete();
+    }
+  });
+
+  return (
+    <>
+      <PerspectiveCamera
+        ref={cameraRef}
+        makeDefault
+        position={[0, 60, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        fov={60}
+        near={0.1}
+        far={1000}
+      />
+      <OrbitControls
+        ref={controlsRef}
+        enablePan
+        enableZoom
+        enableRotate
+        maxDistance={300}
+        minDistance={20}
+        minPolarAngle={Math.PI * 0.1}
+        maxPolarAngle={Math.PI * 0.9}
+        target={[0, 0, 0]}
+        enableDamping
+        dampingFactor={0.05}
+      />
+    </>
+  );
+}
 
 function App() {
   const [selectedPub, setSelectedPub] = useState<Publication | null>(null);
@@ -25,8 +196,13 @@ function App() {
   const [selectedConstellation, setSelectedConstellation] = useState<
     string | null
   >(null);
-  const cameraRef = useRef<any>(null);
-  const controlsRef = useRef<any>(null);
+  
+  // Animation states
+  const [isCameraAnimating, setIsCameraAnimating] = useState(false);
+  const [cameraTargetPosition, setCameraTargetPosition] = useState<[number, number, number] | null>(null);
+  const [cameraTargetLookAt, setCameraTargetLookAt] = useState<[number, number, number] | null>(null);
+  const [showConnections, setShowConnections] = useState(false);
+  const [connectionOpacity, setConnectionOpacity] = useState(0);
 
   useEffect(() => {
     const consts = createConstellations();
@@ -40,21 +216,44 @@ function App() {
   const handlePubClick = (pub: Publication) => {
     setSelectedPub(pub);
 
-    // Zoom into the galaxy - maintain top-down view
+    // Smooth connection animation
+    setShowConnections(true);
+    setConnectionOpacity(1);
+
+    // Zoom into the galaxy - maintain top-down view with smooth animation
     if (pub.constellationId) {
       setSelectedConstellation(pub.constellationId);
       const constellation = constellations.find(
         (c) => c.id === pub.constellationId
       );
 
-      if (constellation && cameraRef.current && controlsRef.current) {
-        // Zoom in from above (top-down view)
+      if (constellation) {
+        // Set target positions for smooth camera animation
         const [x, y, z] = constellation.center;
-        cameraRef.current.position.set(x, 20, z);
-        controlsRef.current.target.set(x, y, z);
+        setCameraTargetPosition([x, 20, z]);
+        setCameraTargetLookAt([x, y, z]);
+        setIsCameraAnimating(true);
       }
     }
   };
+
+  const handleAnimationComplete = useCallback(() => {
+    setIsCameraAnimating(false);
+    setCameraTargetPosition(null);
+    setCameraTargetLookAt(null);
+  }, []);
+
+  const handleBackToOverview = useCallback(() => {
+    setSelectedConstellation(null);
+    setSelectedPub(null);
+    setShowConnections(false);
+    setConnectionOpacity(0);
+    
+    // Smooth camera return to overview
+    setCameraTargetPosition([0, 60, 0]);
+    setCameraTargetLookAt([0, 0, 0]);
+    setIsCameraAnimating(true);
+  }, []);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -133,6 +332,7 @@ function App() {
             placeholder="🔍 Search publications, tags, or topics..."
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
+            className="smooth-transition"
             style={{
               width: "100%",
               maxWidth: "600px",
@@ -159,6 +359,7 @@ function App() {
         >
           <button
             onClick={() => handleCategoryFilter("all")}
+            className="smooth-transition smooth-scale"
             style={{
               padding: "8px 16px",
               borderRadius: "20px",
@@ -181,6 +382,7 @@ function App() {
             <button
               key={name}
               onClick={() => handleCategoryFilter(name)}
+              className="smooth-transition smooth-scale"
               style={{
                 padding: "8px 16px",
                 borderRadius: "20px",
@@ -251,6 +453,8 @@ function App() {
             }`,
             color: "white",
             fontSize: "14px",
+            animation: "slideUp 0.5s ease-out",
+            transform: "translateY(0)",
           }}
         >
           <div
@@ -312,13 +516,7 @@ function App() {
             <div style={{ display: "flex", gap: "8px" }}>
               {selectedConstellation && (
                 <button
-                  onClick={() => {
-                    setSelectedConstellation(null);
-                    if (cameraRef.current && controlsRef.current) {
-                      cameraRef.current.position.set(0, 60, 0);
-                      controlsRef.current.target.set(0, 0, 0);
-                    }
-                  }}
+                  onClick={handleBackToOverview}
                   style={{
                     background: "rgba(100, 200, 255, 0.2)",
                     border: "1px solid rgba(100, 200, 255, 0.5)",
@@ -327,6 +525,7 @@ function App() {
                     borderRadius: "8px",
                     cursor: "pointer",
                     fontSize: "14px",
+                    transition: "all 0.3s ease",
                   }}
                 >
                   ← Back
@@ -334,6 +533,7 @@ function App() {
               )}
               <button
                 onClick={() => setSelectedPub(null)}
+                className="smooth-transition smooth-scale"
                 style={{
                   background: "rgba(255,255,255,0.1)",
                   border: "none",
@@ -388,24 +588,12 @@ function App() {
       {/* 3D Canvas */}
       <Canvas>
         <Suspense fallback={null}>
-          <PerspectiveCamera
-            ref={cameraRef}
-            makeDefault
-            position={[0, 40, 80]}
-            fov={60}
-            near={0.1}
-            far={1000}
-          />
-          <OrbitControls
-            ref={controlsRef}
-            enablePan
-            enableZoom
-            enableRotate
-            maxDistance={300}
-            minDistance={20}
-            minPolarAngle={Math.PI * 0.1}
-            maxPolarAngle={Math.PI * 0.9}
-            target={[0, 0, 0]}
+          {/* Smooth Camera with Animation */}
+          <SmoothCamera
+            targetPosition={cameraTargetPosition}
+            targetLookAt={cameraTargetLookAt}
+            isAnimating={isCameraAnimating}
+            onAnimationComplete={handleAnimationComplete}
           />
 
           {/* Lighting */}
@@ -443,10 +631,11 @@ function App() {
             />
           ))}
 
-          {/* Connection Lines */}
-          <ConnectionLines
+          {/* Connection Lines with Smooth Animation */}
+          <SmoothConnections
             publications={mockPublications}
             selectedPub={selectedPub}
+            opacity={showConnections ? connectionOpacity : 0}
           />
         </Suspense>
       </Canvas>
