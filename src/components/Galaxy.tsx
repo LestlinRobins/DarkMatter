@@ -15,7 +15,7 @@ export function Galaxy({ center, color, isSelected }: GalaxyProps) {
 
   // Create Milky Way-like galaxy particles
   const particles = useMemo(() => {
-    const particleCount = 8000; // More particles for denser look
+    const particleCount = 10000; // More particles for denser look + scattered stars
     const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
     const sizes = new Float32Array(particleCount);
@@ -25,32 +25,44 @@ export function Galaxy({ center, color, isSelected }: GalaxyProps) {
     const blueColor = new THREE.Color("#4AA3DF"); // Blue tint for outer arms
 
     for (let i = 0; i < particleCount; i++) {
-      // Multiple spiral arms (4 arms like Milky Way)
-      const spiralArms = 4;
-      const armIndex = Math.floor(Math.random() * spiralArms);
+      // 70% in spiral arms, 30% scattered between arms for natural look
+      const inSpiralArm = Math.random() < 0.4;
 
-      // Distance from center with power distribution for realistic density
-      const radius = Math.pow(Math.random(), 0.5) * 12;
+      let finalAngle;
+      let radius;
 
-      // Base angle for arm
-      const baseAngle = (armIndex / spiralArms) * Math.PI * 2;
+      if (inSpiralArm) {
+        // Multiple spiral arms (4 arms like Milky Way)
+        const spiralArms = 4;
+        const armIndex = Math.floor(Math.random() * spiralArms);
 
-      // Spiral equation: angle increases with radius (tight spiral)
-      const spiralTightness = 0.6;
-      const spiralAngle = baseAngle + radius * spiralTightness;
+        // Distance from center with power distribution for realistic density
+        radius = Math.pow(Math.random(), 0.5) * 12;
 
-      // Add randomness along the arm width
-      const armWidth = 0.3 + radius * 0.05;
-      const offsetAngle = (Math.random() - 0.5) * armWidth;
+        // Base angle for arm
+        const baseAngle = (armIndex / spiralArms) * Math.PI * 2;
 
-      const finalAngle = spiralAngle + offsetAngle;
+        // Spiral equation: angle increases with radius (tight spiral)
+        const spiralTightness = 0.7;
+        const spiralAngle = baseAngle + radius * spiralTightness;
+
+        // Add randomness along the arm width
+        const armWidth = 0.3 + radius * 0.05;
+        const offsetAngle = (Math.random() - 0.5) * armWidth;
+
+        finalAngle = spiralAngle + offsetAngle;
+      } else {
+        // Scattered stars between arms - completely random distribution
+        radius = Math.pow(Math.random(), 0.5) * 12;
+        finalAngle = Math.random() * Math.PI * 2;
+      }
 
       // Position in XZ plane (flat galaxy disk)
       const x = Math.cos(finalAngle) * radius;
       const z = Math.sin(finalAngle) * radius;
 
-      // Thin disk with bulge in center
-      const diskThickness = 0.15 + (1 / (radius + 1)) * 0.5;
+      // Thicker disk with more pronounced bulge in center
+      const diskThickness = 0.8 + (1 / (radius + 1)) * 2.5;
       const y = (Math.random() - 0.5) * diskThickness;
 
       positions[i * 3] = x;
@@ -81,16 +93,24 @@ export function Galaxy({ center, color, isSelected }: GalaxyProps) {
         );
       }
 
-      // Brightness variation
-      const brightness = 0.6 + Math.random() * 0.4;
+      // Brightness variation - dimmer for scattered stars
+      let brightness;
+      if (inSpiralArm) {
+        brightness = 0.6 + Math.random() * 0.4;
+      } else {
+        // Scattered stars are dimmer and more varied
+        brightness = 0.3 + Math.random() * 0.4;
+      }
+
       colors[i * 3] = starColor.r * brightness;
       colors[i * 3 + 1] = starColor.g * brightness;
       colors[i * 3 + 2] = starColor.b * brightness;
 
-      // Size variation - bigger stars near center
+      // Size variation - bigger stars near center, smaller for scattered
       const sizeVariation = Math.random();
       const centerSize = 1 / (distanceFromCenter + 1);
-      sizes[i] = 0.03 + sizeVariation * 0.08 + centerSize * 0.1;
+      const baseSize = inSpiralArm ? 0.03 : 0.02; // Scattered stars slightly smaller
+      sizes[i] = baseSize + sizeVariation * 0.08 + centerSize * 0.1;
     }
 
     return { positions, colors, sizes };
