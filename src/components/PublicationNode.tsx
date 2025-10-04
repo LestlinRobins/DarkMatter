@@ -18,7 +18,7 @@ export function PublicationNode({
   isSelected,
   isConnected,
 }: PublicationNodeProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
 
   const color =
@@ -26,20 +26,19 @@ export function PublicationNode({
     "#888888";
 
   useFrame((state) => {
-    if (meshRef.current) {
+    if (groupRef.current) {
       if (isSelected) {
-        meshRef.current.scale.setScalar(
+        groupRef.current.scale.setScalar(
           1.5 + Math.sin(state.clock.getElapsedTime() * 2) * 0.2
         );
       } else if (hovered) {
-        meshRef.current.scale.setScalar(1.3);
+        groupRef.current.scale.setScalar(1.3);
       } else {
-        meshRef.current.scale.setScalar(1);
+        groupRef.current.scale.setScalar(1);
       }
 
       // Gentle floating animation
-      meshRef.current.position.y =
-        publication.position[1] +
+      groupRef.current.position.y =
         Math.sin(state.clock.getElapsedTime() + publication.position[0]) * 0.2;
     }
   });
@@ -49,33 +48,36 @@ export function PublicationNode({
 
   return (
     <group position={publication.position}>
-      <mesh
-        ref={meshRef}
+      <group
+        ref={groupRef}
         onClick={() => onClick(publication)}
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
         scale={scale}
       >
-        <sphereGeometry args={[0.5, 32, 32]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={isSelected ? 0.8 : isConnected ? 0.5 : 0.3}
-          transparent
-          opacity={opacity}
-        />
-      </mesh>
+        {/* Main sphere */}
+        <mesh>
+          <sphereGeometry args={[0.5, 32, 32]} />
+          <meshStandardMaterial
+            color={color}
+            emissive={color}
+            emissiveIntensity={isSelected ? 0.8 : isConnected ? 0.5 : 0.3}
+            transparent
+            opacity={opacity}
+          />
+        </mesh>
 
-      {/* Outer glow ring */}
-      <mesh scale={scale * 1.2}>
-        <ringGeometry args={[0.6, 0.7, 32]} />
-        <meshBasicMaterial
-          color={color}
-          transparent
-          opacity={isSelected ? 0.6 : isConnected ? 0.3 : 0.1}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
+        {/* Outer glow ring */}
+        <mesh scale={1.2}>
+          <ringGeometry args={[0.6, 0.7, 32]} />
+          <meshBasicMaterial
+            color={color}
+            transparent
+            opacity={isSelected ? 0.6 : isConnected ? 0.3 : 0.1}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      </group>
 
       {(hovered || isSelected) && (
         <Html distanceFactor={10} style={{ pointerEvents: "none" }}>

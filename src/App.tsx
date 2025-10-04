@@ -23,22 +23,30 @@ function App() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    if (query.trim() === "") {
-      setFilteredPubs(mockPublications);
-    } else {
-      setFilteredPubs(searchPublications(query));
-    }
+    applyFilters(query, selectedCategory);
   };
 
   const handleCategoryFilter = (category: string) => {
     setSelectedCategory(category);
-    if (category === "all") {
-      setFilteredPubs(mockPublications);
-    } else {
-      setFilteredPubs(
-        mockPublications.filter((pub) => pub.category === category)
+    applyFilters(searchQuery, category);
+  };
+
+  const applyFilters = (search: string, category: string) => {
+    let filtered = mockPublications;
+
+    // Apply category filter
+    if (category !== "all") {
+      filtered = filtered.filter((pub) => pub.category === category);
+    }
+
+    // Apply search filter
+    if (search.trim() !== "") {
+      filtered = searchPublications(search).filter(
+        (pub) => category === "all" || pub.category === category
       );
     }
+
+    setFilteredPubs(filtered);
   };
 
   const connectedIds = selectedPub ? selectedPub.connections : [];
