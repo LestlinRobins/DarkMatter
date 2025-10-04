@@ -8,7 +8,7 @@ export function Sun() {
   const coronaRef = useRef<THREE.Points>(null);
 
   // Create photosphere particles for a more realistic sun surface
-  const {} = useMemo(() => {
+  const { photosphereGeometry, photosphereMaterial } = useMemo(() => {
     const geometry = new THREE.BufferGeometry();
     const particles = 100000;
     const positions = new Float32Array(particles * 3);
@@ -119,10 +119,10 @@ export function Sun() {
       </mesh>
 
       {/* Photosphere particles */}
-      {/* <points ref={photosphereRef}>
+      <points ref={photosphereRef}>
         <primitive object={photosphereGeometry} />
         <primitive object={photosphereMaterial} attach="material" />
-      </points> */}
+      </points>
 
       {/* Corona */}
       <points ref={coronaRef}>
