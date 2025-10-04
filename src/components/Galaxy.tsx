@@ -153,7 +153,7 @@ export function Galaxy({ center, color, isSelected }: GalaxyProps) {
   return (
     <group position={center}>
       {/* Galaxy disk with particles */}
-      <points ref={galaxyRef}>
+      <points ref={galaxyRef} renderOrder={5}>
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
@@ -174,47 +174,26 @@ export function Galaxy({ center, color, isSelected }: GalaxyProps) {
       </points>
 
       {/* Bright galactic core bulge */}
-      <mesh ref={coreRef}>
+      <mesh ref={coreRef} renderOrder={4}>
         <sphereGeometry args={[1.2, 32, 32]} />
         <meshBasicMaterial
           color="#FFF8DC"
           transparent
           opacity={isSelected ? 0.6 : 0.4}
+          depthWrite={false}
         />
       </mesh>
 
-      {/* Inner core glow */}
-      <mesh ref={glowRef}>
-        <sphereGeometry args={[2.5, 32, 32]} />
+      {/* Inner core glow - subtle */}
+      <mesh ref={glowRef} renderOrder={3}>
+        <sphereGeometry args={[1.8, 32, 32]} />
         <meshBasicMaterial
           color="#FFE4B5"
           transparent
-          opacity={isSelected ? 0.25 : 0.15}
+          opacity={isSelected ? 0.2 : 0.1}
           side={THREE.BackSide}
           blending={THREE.AdditiveBlending}
-        />
-      </mesh>
-
-      {/* Galaxy disk glow */}
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[2, 13, 64]} />
-        <meshBasicMaterial
-          color={color}
-          transparent
-          opacity={isSelected ? 0.12 : 0.06}
-          side={THREE.DoubleSide}
-          blending={THREE.AdditiveBlending}
-        />
-      </mesh>
-
-      {/* Dark dust lanes (subtle) */}
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[5, 11, 64, 1, 0, Math.PI]} />
-        <meshBasicMaterial
-          color="#1a1a2e"
-          transparent
-          opacity={0.15}
-          side={THREE.DoubleSide}
+          depthWrite={false}
         />
       </mesh>
 
