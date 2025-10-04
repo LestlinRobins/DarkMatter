@@ -1,4 +1,4 @@
-import type { Publication } from "./types";
+import type { Publication, Constellation } from "./types";
 
 // Sample NASA bioscience publications data
 // In a real implementation, this would be loaded from the NASA repository
@@ -247,4 +247,57 @@ export function getStatistics(): Statistics {
     averageCitationsPerPaper,
     topCategory,
   };
+}
+
+// Function to create galaxies (groups of 4 publications)
+export function createConstellations(): Constellation[] {
+  const constellations: Constellation[] = [];
+  const groupSize = 4; // Changed to 4 for galaxies
+
+  let constellationIndex = 0;
+
+  for (let i = 0; i < mockPublications.length; i += groupSize) {
+    const group = mockPublications.slice(i, i + groupSize);
+    const category = group[0].category;
+    const color =
+      categories[category as keyof typeof categories]?.color || "#888888";
+
+    // Calculate galaxy center position - flat plane around sun
+    const angle =
+      (constellationIndex / Math.ceil(mockPublications.length / groupSize)) *
+      Math.PI *
+      2;
+    const radius = 35; // Distance from center sun
+    const centerX = Math.cos(angle) * radius;
+    const centerZ = Math.sin(angle) * radius;
+    const centerY = 0; // Keep all galaxies in the same plane
+
+    // Position publications within the galaxy (spread them out in spiral arms)
+    group.forEach((pub, index) => {
+      const spiralAngle =
+        (index / groupSize) * Math.PI * 2 + Math.random() * 0.5;
+      const spiralRadius = 4 + index * 1.5; // Spread further within galaxy
+
+      // Update the actual publication in mockPublications
+      pub.position = [
+        centerX + Math.cos(spiralAngle) * spiralRadius,
+        centerY + (Math.random() - 0.5) * 0.3, // Very thin disk
+        centerZ + Math.sin(spiralAngle) * spiralRadius,
+      ];
+      pub.constellationId = `galaxy-${constellationIndex}`;
+    });
+
+    constellations.push({
+      id: `galaxy-${constellationIndex}`,
+      name: `${category} Galaxy ${constellationIndex + 1}`,
+      publications: group,
+      center: [centerX, centerY, centerZ],
+      color,
+      category,
+    });
+
+    constellationIndex++;
+  }
+
+  return constellations;
 }

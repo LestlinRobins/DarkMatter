@@ -88,7 +88,7 @@ export function PublicationNode({
               padding: "12px",
               borderRadius: "8px",
               border: `2px solid ${color}`,
-              maxWidth: "300px",
+              maxWidth: "800px",
               fontSize: "12px",
               whiteSpace: "normal",
               transform: "translate(-50%, -120%)",
