@@ -221,6 +221,7 @@ function App() {
   >(null);
   const [showConnections, setShowConnections] = useState(false);
   const [connectionOpacity, setConnectionOpacity] = useState(0);
+  const [showConnectionsPopup, setShowConnectionsPopup] = useState(false);
 
   useEffect(() => {
     const consts = createConstellations();
@@ -274,6 +275,18 @@ function App() {
         }
       }
     }
+  };
+
+  const handleConnectionClick = (connectionId: string) => {
+    const connectedPub = mockPublications.find(p => p.id === connectionId);
+    if (connectedPub) {
+      // Navigate to the connected publication
+      handlePubClick(connectedPub);
+    }
+  };
+
+  const toggleConnectionsPopup = () => {
+    setShowConnectionsPopup(!showConnectionsPopup);
   };
 
   const handleAnimationComplete = useCallback(() => {
@@ -385,7 +398,10 @@ function App() {
   })();
 
   return (
-    <div style={{ width: "100vw", height: "100vh", background: "#000" }}>
+    <div
+      style={{ width: "100vw", height: "100vh", background: "#000" }}
+      onClick={() => showConnectionsPopup && setShowConnectionsPopup(false)} // Close popup when clicking outside
+    >
       {/* UI Overlay */}
       <div
         style={{
@@ -399,6 +415,7 @@ function App() {
             "linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%)",
           pointerEvents: "none",
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         <h1
           style={{
@@ -424,7 +441,7 @@ function App() {
         </p>
 
         {/* Search Bar */}
-        <div style={{ pointerEvents: "auto", marginBottom: "15px" }}>
+        <div style={{ pointerEvents: "auto", marginBottom: "15px" }} onClick={(e) => e.stopPropagation()}>
           <input
             type="text"
             placeholder="🔍 Search publications, tags, or topics..."
@@ -454,9 +471,13 @@ function App() {
             flexWrap: "wrap",
             pointerEvents: "auto",
           }}
+          onClick={(e) => e.stopPropagation()}
         >
           <button
-            onClick={() => handleCategoryFilter("all")}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCategoryFilter("all");
+            }}
             className="smooth-transition smooth-scale"
             style={{
               padding: "8px 16px",
@@ -479,7 +500,10 @@ function App() {
           {Object.entries(categories).map(([name, info]) => (
             <button
               key={name}
-              onClick={() => handleCategoryFilter(name)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCategoryFilter(name);
+              }}
               className="smooth-transition smooth-scale"
               style={{
                 padding: "8px 16px",
@@ -519,6 +543,7 @@ function App() {
           fontSize: "12px",
           minWidth: "200px",
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div
           style={{ fontWeight: "700", marginBottom: "10px", fontSize: "14px" }}
@@ -554,6 +579,7 @@ function App() {
             animation: "slideUp 0.5s ease-out",
             transform: "translateY(0)",
           }}
+          onClick={(e) => e.stopPropagation()}
         >
           <div
             style={{
@@ -610,11 +636,35 @@ function App() {
                   </span>
                 ))}
               </div>
+
+              {/* Connections Button */}
+              {selectedPub.connections.length > 0 && (
+                <div style={{ marginTop: "15px" }}>
+                  <button
+                    onClick={toggleConnectionsPopup}
+                    style={{
+                      background: "rgba(100, 200, 255, 0.2)",
+                      border: "1px solid rgba(100, 200, 255, 0.5)",
+                      color: "white",
+                      padding: "8px 16px",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      transition: "all 0.3s ease",
+                    }}
+                  >
+                    🔗 View Connections ({selectedPub.connections.length})
+                  </button>
+                </div>
+              )}
             </div>
             <div style={{ display: "flex", gap: "8px" }}>
               {selectedConstellation && (
                 <button
-                  onClick={handleBackToOverview}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleBackToOverview();
+                  }}
                   style={{
                     background: "rgba(100, 200, 255, 0.2)",
                     border: "1px solid rgba(100, 200, 255, 0.5)",
@@ -630,7 +680,10 @@ function App() {
                 </button>
               )}
               <button
-                onClick={() => setSelectedPub(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedPub(null);
+                }}
                 className="smooth-transition smooth-scale"
                 style={{
                   background: "rgba(255,255,255,0.1)",
@@ -646,6 +699,133 @@ function App() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Connections Popup */}
+      {showConnectionsPopup && selectedPub && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            zIndex: 15, // Lower z-index to allow 3D interaction
+            width: "90%",
+            maxWidth: "600px",
+            maxHeight: "70vh",
+            background: "rgba(20, 20, 40, 0.2)", // Even more transparent
+            backdropFilter: "blur(3px)", // Minimal blur
+            borderRadius: "12px",
+            border: `1px solid ${categories[selectedPub.category as keyof typeof categories]?.color || "#888"}60`, // Semi-transparent border
+            color: "white",
+            padding: "20px",
+            animation: "slideUp 0.3s ease-out",
+            pointerEvents: "auto", // Allow interaction with popup content only
+          }}
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent clicks from reaching 3D scene and closing popup
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "20px",
+              borderBottom: "1px solid rgba(255,255,255,0.3)", // More transparent border
+              paddingBottom: "15px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: 0, color: categories[selectedPub.category as keyof typeof categories]?.color }}>
+              🔗 Connections for "{selectedPub.title.length > 40 ? `${selectedPub.title.substring(0, 40)}...` : selectedPub.title}"
+            </h3>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleConnectionsPopup();
+              }}
+              style={{
+                background: "rgba(255,255,255,0.2)", // More transparent button
+                border: "none",
+                color: "white",
+                padding: "8px 12px",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontSize: "16px",
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div
+            style={{ maxHeight: "400px", overflowY: "auto" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {selectedPub.connections.map((connectionId) => {
+              const connectedPub = mockPublications.find(p => p.id === connectionId);
+              if (!connectedPub) return null;
+
+              return (
+                <div
+                  key={connectionId}
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent popup from closing
+                    handleConnectionClick(connectionId);
+                  }}
+                  style={{
+                    padding: "12px 16px",
+                    marginBottom: "8px",
+                    background: "rgba(255,255,255,0.1)", // More transparent background
+                    borderRadius: "8px",
+                    border: `1px solid ${categories[connectedPub.category as keyof typeof categories]?.color}60`, // Semi-transparent border
+                    cursor: "pointer",
+                    transition: "all 0.3s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.2)";
+                    e.currentTarget.style.border = `1px solid ${categories[connectedPub.category as keyof typeof categories]?.color}`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+                    e.currentTarget.style.border = `1px solid ${categories[connectedPub.category as keyof typeof categories]?.color}60`;
+                  }}
+                >
+                  <div style={{ fontWeight: "600", marginBottom: "4px", color: categories[connectedPub.category as keyof typeof categories]?.color }}>
+                    {connectedPub.title.length > 60 ? `${connectedPub.title.substring(0, 60)}...` : connectedPub.title}
+                  </div>
+                  <div style={{ fontSize: "12px", opacity: 0.9, marginBottom: "6px" }}> {/* Increased opacity for better readability */}
+                    {connectedPub.authors.join(", ")} • {connectedPub.year}
+                  </div>
+                  <div style={{ display: "flex", gap: "12px", fontSize: "11px" }}>
+                    <span style={{
+                      background: categories[connectedPub.category as keyof typeof categories]?.color,
+                      color: "white",
+                      padding: "2px 8px",
+                      borderRadius: "10px",
+                      fontSize: "10px",
+                      fontWeight: "bold",
+                    }}>
+                      {connectedPub.category}
+                    </span>
+                    <span>📊 {connectedPub.citations} citations</span>
+                    <span>🔗 {connectedPub.connections.length} connections</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {selectedPub.connections.length === 0 && (
+            <div
+              style={{ textAlign: "center", padding: "40px", opacity: 0.8 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              No connections found for this publication.
+            </div>
+          )}
         </div>
       )}
 
@@ -666,6 +846,7 @@ function App() {
             fontSize: "12px",
             maxWidth: "250px",
           }}
+          onClick={(e) => e.stopPropagation()}
         >
           <div
             style={{ fontWeight: "700", marginBottom: "8px", color: "white" }}
@@ -684,7 +865,7 @@ function App() {
       )}
 
       {/* 3D Canvas */}
-      <Canvas>
+      <Canvas style={{ pointerEvents: showConnectionsPopup ? "auto" : "auto" }}>
         <Suspense fallback={null}>
           {/* Smooth Camera with Animation */}
           <SmoothCamera

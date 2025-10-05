@@ -13,6 +13,11 @@ export function Galaxy({ center, color, isSelected }: GalaxyProps) {
   const coreRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
 
+  // New refs for particle core layers
+  const coreParticlesRef = useRef<THREE.Points>(null);
+  const innerCoreRef = useRef<THREE.Points>(null);
+  const outerCoreRef = useRef<THREE.Points>(null);
+
   // Create Milky Way-like galaxy particles
   const particles = useMemo(() => {
     const particleCount = 10000; // More particles for denser look + scattered stars
@@ -116,62 +121,221 @@ export function Galaxy({ center, color, isSelected }: GalaxyProps) {
     return { positions, colors, sizes };
   }, [color]);
 
-  const particleMaterial = useMemo(() => {
-    return new THREE.PointsMaterial({
-      size: 0.15,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.9,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      sizeAttenuation: true,
-      map: createStarTexture(),
-    });
-  }, []);
-
-  // Create star texture for better appearance
-  function createStarTexture() {
+  // Create circular particle texture for core
+  const particleTexture = useMemo(() => {
     const canvas = document.createElement("canvas");
     canvas.width = 32;
     canvas.height = 32;
     const ctx = canvas.getContext("2d")!;
 
+    // Create radial gradient for circular particle
     const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-    gradient.addColorStop(0, "rgba(255,255,255,1)");
-    gradient.addColorStop(0.2, "rgba(255,255,255,0.8)");
-    gradient.addColorStop(0.5, "rgba(255,255,255,0.3)");
-    gradient.addColorStop(1, "rgba(255,255,255,0)");
+    gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+    gradient.addColorStop(0.2, "rgba(255, 255, 255, 0.9)");
+    gradient.addColorStop(0.5, "rgba(255, 255, 255, 0.5)");
+    gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
 
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 32, 32);
 
-    const texture = new THREE.Texture(canvas);
+    const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
     return texture;
-  }
+  }, []);
 
-  useFrame((state) => {
-    if (galaxyRef.current) {
-      // Slow rotation
-      galaxyRef.current.rotation.y = state.clock.getElapsedTime() * 0.05;
+  // Create core particle systems like the sun
+  const coreGeometry = useMemo(() => {
+    // Core particles - dense, bright center
+    const coreGeom = new THREE.BufferGeometry();
+    const coreParticles = 8000;
+    const corePositions = new Float32Array(coreParticles * 3);
+    const coreColors = new Float32Array(coreParticles * 3);
+
+    for (let i = 0; i < coreParticles; i++) {
+      // Dense spherical distribution for bright core
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(Math.random() * 2 - 1);
+      const r = 0.8 + Math.random() * 0.4; // 0.8 to 1.2 radius
+
+      corePositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      corePositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      corePositions[i * 3 + 2] = r * Math.cos(phi);
+
+      // Bright white-yellow colors (more white)
+      const brightness = 0.9 + Math.random() * 0.1;
+      coreColors[i * 3] = brightness;        // Red - full brightness for white
+      coreColors[i * 3 + 1] = brightness * 0.9;  // Green - slightly less for warm white
+      coreColors[i * 3 + 2] = brightness * 0.7;  // Blue - reduced for creamy white
     }
 
-    if (coreRef.current) {
-      // Pulsing core
-      const scale = 1 + Math.sin(state.clock.getElapsedTime() * 2) * 0.1;
-      coreRef.current.scale.setScalar(scale);
+    coreGeom.setAttribute("position", new THREE.BufferAttribute(corePositions, 3));
+    coreGeom.setAttribute("color", new THREE.BufferAttribute(coreColors, 3));
+
+    return coreGeom;
+  }, []);
+
+  const coreMaterial = useMemo(() => {
+    return new THREE.PointsMaterial({
+      size: 0.08,
+      vertexColors: true,
+      map: particleTexture,
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      depthTest: true,
+      depthWrite: true,
+      alphaTest: 0.01,
+    });
+  }, [particleTexture]);
+
+  const innerGeometry = useMemo(() => {
+    // Inner core layer - medium density
+    const innerGeom = new THREE.BufferGeometry();
+    const innerParticles = 5000;
+    const innerPositions = new Float32Array(innerParticles * 3);
+    const innerColors = new Float32Array(innerParticles * 3);
+
+    for (let i = 0; i < innerParticles; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(Math.random() * 2 - 1);
+      const r = 1.5 + Math.pow(Math.random(), 2) * 1.5; // 1.5 to 3.0 radius
+
+      innerPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      innerPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      innerPositions[i * 3 + 2] = r * Math.cos(phi);
+
+      const intensity = Math.pow(1.5 / r, 1.2);
+      innerColors[i * 3] = intensity * 0.95;     // Much whiter
+      innerColors[i * 3 + 1] = intensity * 0.85; // Slightly warm
+      innerColors[i * 3 + 2] = intensity * 0.6;  // Minimal blue for creamy white
+    }
+
+    innerGeom.setAttribute("position", new THREE.BufferAttribute(innerPositions, 3));
+    innerGeom.setAttribute("color", new THREE.BufferAttribute(innerColors, 3));
+
+    return innerGeom;
+  }, []);
+
+  const innerMaterial = useMemo(() => {
+    return new THREE.PointsMaterial({
+      size: 0.06,
+      vertexColors: true,
+      map: particleTexture,
+      transparent: true,
+      opacity: 0.7,
+      blending: THREE.AdditiveBlending,
+      depthTest: true,
+      depthWrite: false,
+      alphaTest: 0.01,
+    });
+  }, [particleTexture]);
+
+  const outerGeometry = useMemo(() => {
+    // Outer core layer - sparse, extended
+    const outerGeom = new THREE.BufferGeometry();
+    const outerParticles = 3000;
+    const outerPositions = new Float32Array(outerParticles * 3);
+    const outerColors = new Float32Array(outerParticles * 3);
+
+    for (let i = 0; i < outerParticles; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(Math.random() * 2 - 1);
+      const r = 3 + Math.pow(Math.random(), 3) * 4; // 3 to 7 radius, exponential falloff
+
+      outerPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      outerPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      outerPositions[i * 3 + 2] = r * Math.cos(phi);
+
+      const intensity = Math.pow(3 / r, 1.8);
+      outerColors[i * 3] = intensity * 0.9;      // Very white
+      outerColors[i * 3 + 1] = intensity * 0.75; // Warm white
+      outerColors[i * 3 + 2] = intensity * 0.4;  // Minimal blue
+    }
+
+    outerGeom.setAttribute("position", new THREE.BufferAttribute(outerPositions, 3));
+    outerGeom.setAttribute("color", new THREE.BufferAttribute(outerColors, 3));
+
+    return outerGeom;
+  }, []);
+
+  const outerMaterial = useMemo(() => {
+    return new THREE.PointsMaterial({
+      size: 0.04,
+      vertexColors: true,
+      map: particleTexture,
+      transparent: true,
+      opacity: 0.5,
+      blending: THREE.AdditiveBlending,
+      depthTest: true,
+      depthWrite: false,
+      alphaTest: 0.01,
+    });
+  }, [particleTexture]);
+
+  useFrame((state) => {
+    const time = state.clock.getElapsedTime();
+
+    if (galaxyRef.current) {
+      // Slow rotation
+      galaxyRef.current.rotation.y = time * 0.05;
+    }
+
+    // Animate core particle systems
+    if (coreParticlesRef.current) {
+      coreParticlesRef.current.rotation.y = time * 0.05; // Slow rotation only
+    }
+
+    if (innerCoreRef.current) {
+      innerCoreRef.current.rotation.y = time * 0.03;
+      const scale = 1 + Math.sin(time * 0.2) * 0.05; // Very minimal pulsing
+      innerCoreRef.current.scale.setScalar(scale);
+    }
+
+    if (outerCoreRef.current) {
+      outerCoreRef.current.rotation.y = time * 0.01;
+      const scale = 1 + Math.sin(time * 0.15) * 0.03; // Very minimal pulsing
+      outerCoreRef.current.scale.setScalar(scale);
     }
 
     if (glowRef.current) {
-      // Pulsing glow
-      const scale = 1 + Math.sin(state.clock.getElapsedTime() * 1.5) * 0.15;
+      // Very minimal pulsing glow
+      const scale = 1 + Math.sin(time * 0.8) * 0.08; // Slower, smaller pulse
       glowRef.current.scale.setScalar(scale);
-      glowRef.current.rotation.y = -state.clock.getElapsedTime() * 0.1;
+      glowRef.current.rotation.y = -time * 0.05; // Slower rotation
     }
   });
 
   return (
     <group position={center}>
+      {/* Bright galactic core with particle layers */}
+      <points ref={coreParticlesRef} renderOrder={4}>
+        <primitive object={coreGeometry} />
+        <primitive object={coreMaterial} attach="material" />
+      </points>
+
+      <points ref={innerCoreRef} renderOrder={3}>
+        <primitive object={innerGeometry} />
+        <primitive object={innerMaterial} attach="material" />
+      </points>
+
+      <points ref={outerCoreRef} renderOrder={2}>
+        <primitive object={outerGeometry} />
+        <primitive object={outerMaterial} attach="material" />
+      </points>
+
+      {/* Inner core glow - very subtle */}
+      <mesh ref={glowRef} renderOrder={1}>
+        <sphereGeometry args={[3.5, 32, 32]} />
+        <meshBasicMaterial
+          color="#FFFAF0" // Very creamy white
+          transparent
+          opacity={isSelected ? 0.15 : 0.08} // Much more subtle
+          side={THREE.BackSide}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+
       {/* Galaxy disk with particles */}
       <points ref={galaxyRef} renderOrder={5}>
         <bufferGeometry>
@@ -190,38 +354,23 @@ export function Galaxy({ center, color, isSelected }: GalaxyProps) {
             args={[particles.colors, 3]}
           />
         </bufferGeometry>
-        <primitive object={particleMaterial} attach="material" />
-      </points>
-
-      {/* Bright galactic core bulge */}
-      <mesh ref={coreRef} renderOrder={4}>
-        <sphereGeometry args={[1.2, 32, 32]} />
-        <meshBasicMaterial
-          color="#FFF8DC"
-          transparent
-          opacity={isSelected ? 0.6 : 0.4}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {/* Inner core glow - subtle */}
-      <mesh ref={glowRef} renderOrder={3}>
-        <sphereGeometry args={[1.8, 32, 32]} />
-        <meshBasicMaterial
-          color="#FFE4B5"
-          transparent
-          opacity={isSelected ? 0.2 : 0.1}
-          side={THREE.BackSide}
+        <pointsMaterial
+          size={0.15}
+          vertexColors={true}
+          transparent={true}
+          opacity={0.9}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
+          sizeAttenuation={true}
+          map={particleTexture}
         />
-      </mesh>
+      </points>
 
       {/* Ambient light from galaxy core */}
       <pointLight
-        intensity={isSelected ? 1.5 : 0.8}
+        intensity={isSelected ? 2 : 1}
         color={color}
-        distance={20}
+        distance={25}
         decay={2}
       />
     </group>
